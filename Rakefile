@@ -135,9 +135,18 @@ namespace :scientific do
   task :setup => :upload do
     puts razor('image', 'add', 'os', remote_file_name, 'scientific', '6.2')
   end
+
+  task :create_model => :setup do
+    response = razor_api("image")['response']
+    target_uuid = response.select { |image| image["OS Name"] == "scientific" }.first["UUID"]
+    puts razor('model','add',"template=centos_6", "label=install_centos_6", "image_uuid=#{target_uuid}")
+  end
+
+  task :create_policy => :create_model do
+  end
 end
 
-task :scientific => 'scientific:setup'
+task :scientific => 'scientific:create_model'
 
 namespace :centos do
 
