@@ -1,6 +1,8 @@
 require 'rake'
 require 'net/ssh'
 require 'net/scp'
+require "net/http"
+require "json"
 
 USER = PASSWORD = 'vagrant'
 HOSTS = {
@@ -18,7 +20,44 @@ def scp(host, local_path, remote_path, user = USER, password = PASSWORD)
 end
 
 def razor(*a)
-  puts ssh(:gold).exec!(['sudo /opt/razor/bin/razor', *a].join(' '))
+  ssh(:gold).exec!(['sudo /opt/razor/bin/razor', *a].join(' '))
+end
+
+def razor_api(*a) # As of 2012.06.27 this image api isn't implemented
+  if(a.first == "image")
+    return ghetto_api(a)
+  end
+  # We create a URI object with our IP, Port, and the path to the Slice (Node)
+  uri = URI "http://#{HOSTS['gold']}:8026/razor/api/#{a.join("/")}"
+  # We run an HTTP GET against our Node Slice API
+  res = Net::HTTP.get(uri)
+  # This returns
+  response_hash = JSON.parse(res)
+end
+
+#XXX Hack until images api works
+def ghetto_api(*a)
+  result = razor(a)
+  slice = a.first.first.capitalize
+
+  # Each object is separated by a blank line
+  # Plus an extra blank link at the end we need to trim
+  objects = result.split(/^$/)[0...-1]
+
+  objects.map! do |object|
+    # Break it into lines and select the hash rocket ones
+    # Giving us an Array of stuff that looks like
+    # UUID =>  6LlBHrlbmHAEM8XRwjbQjB
+    # Type =>  OS Install
+    attributes = object.split("\n").select{ |i| i.include?( "=>" ) }
+
+    hash = attributes.each_with_object({}) do |line,hash|
+      key,value = line.split("=>").map { |i| i.strip } # remove leading and trailing spaces on keys / values
+      hash[key] = value
+    end
+  end
+
+  {"resource"=>"ProjectRazor::Slice::#{slice}", "command"=>"#{slice.downcase}_query_all", "result"=>"Ok", "http_err_code"=>200, "errcode"=>0, "response"=> objects}
 end
 
 def download(options)
@@ -52,7 +91,7 @@ namespace :microkernel do
   end
 
   task :setup => :upload do
-    razor('image', 'add', 'mk', remote_file_name)
+    puts razor('image', 'add', 'mk', remote_file_name)
   end
 end
 
@@ -73,7 +112,7 @@ namespace :ubuntu do
   end
 
   task :setup => :upload do
-    razor('image', 'add', 'os', remote_file_name, 'ubuntu_precise', '12.04')
+    puts razor('image', 'add', 'os', remote_file_name, 'ubuntu_precise', '12.04')
   end
 end
 
@@ -81,7 +120,7 @@ task :ubuntu => 'ubuntu:setup'
 
 namespace :scientific do
 
-  url = 'ftp://ftp.scientificlinux.org/linux/scientific/6.2/x86_64/iso/SL-62-x86_64-2012-02-06-boot.iso'
+  url = 'ftp://ftp.scientificlinux.org/linux/scientific/6.0/x86_64/iso/SL-60-x86_64-2011-03-03-boot.iso'
   file_name = File.basename(url)
   remote_file_name = "/tmp/#{file_name}"
 
@@ -94,7 +133,7 @@ namespace :scientific do
   end
 
   task :setup => :upload do
-    razor('image', 'add', 'os', remote_file_name, 'scientific', '6.2')
+    puts razor('image', 'add', 'os', remote_file_name, 'scientific', '6.2')
   end
 end
 
