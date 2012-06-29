@@ -120,7 +120,7 @@ task :ubuntu => 'ubuntu:setup'
 
 namespace :scientific do
 
-  url = 'ftp://ftp.scientificlinux.org/linux/scientific/6.0/x86_64/iso/SL-60-x86_64-2011-03-03-boot.iso'
+  url = 'ftp://ftp.scientificlinux.org/linux/scientific/6.0/x86_64/iso/SL-62-x86_64-2012-02-06-boot.iso'
   file_name = File.basename(url)
   remote_file_name = "/tmp/#{file_name}"
 
